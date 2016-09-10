@@ -3,13 +3,16 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define DEBUG 0
+#define OUTPUT_WIDTH 50
+
 typedef union float_bits {
 	float f;
 	uint8_t bits[sizeof(float)];
 } FLOAT_BITS_UNION;
 
 void handle_file(char in_file[], char out_file[]);
-void print_binary_rep(float* base_10);
+char* get_binary_rep(float* base_10);
 // void print_byte(uint8_t byte, int flag);
 int sprintf_byte(char* buffer, uint8_t byte, int flag);
 
@@ -31,7 +34,7 @@ int sprintf_byte(char* buffer, uint8_t byte, int flag)
 	}
 }
 
-void print_binary_rep(float* base_10) {
+char* get_binary_rep(float* base_10) {
 	FLOAT_BITS_UNION data;
 	data.f = *base_10;
 	/*
@@ -43,10 +46,12 @@ void print_binary_rep(float* base_10) {
 	
 	// get sign bit (MSB)
 	uint8_t sign = data.bits[3] >> 7;
-	printf("sign: %i\n", sign);
+	if(DEBUG)
+		printf("sign: %i\n", sign);
 
 	uint8_t exponent = (data.bits[3] << 1) + (data.bits[2] >> 7);
-	printf("exponent: %i\n", exponent);
+	if(DEBUG)
+		printf("exponent: %i\n", exponent);
 
 	// mask with 0xFF so that C does not use an additional byte for the shifting.
 	uint8_t mantissa_2 = (((data.bits[2] << 1) & 0xFF) >> 1);
@@ -56,11 +61,11 @@ void print_binary_rep(float* base_10) {
 	uint8_t mantissa_0 = ((data.bits[0]));
 
 	uint32_t mantissa = (mantissa_2 << 16) + (mantissa_1 << 8) + (mantissa_0);
-	printf("mantissa: %i\n", mantissa);
+	if(DEBUG)
+		printf("mantissa: %i\n", mantissa);
 
-	char * result;
-	result = (char *) malloc(sizeof(char)*50);
-	// char result[50];
+	char* result;
+	result = (char *) malloc(sizeof(char)*OUTPUT_WIDTH);
 	int length = 0;
 	
 	if(sign){
@@ -74,8 +79,8 @@ void print_binary_rep(float* base_10) {
 	length += sprintf_byte(result+length, mantissa_0, 0);
 	
 	// length += sprintf(result+length, "1.");
-	length += sprintf(result+length, " * 2^%i", exponent-127);
-	printf("%s\n", result);
+	length += sprintf(result+length, " * 2^%i\n", exponent-127);
+	return result;
 }
 
 void handle_file(char in_file[], char out_file[]) {
@@ -87,17 +92,28 @@ void handle_file(char in_file[], char out_file[]) {
 	printf("Handling %s\n", in_file);
 
 	for(int i = 0; i < lines_to_read; ++i) {
-		float data;
-		
 		// read in data
+		float data;
 		fscanf(f, "%f", &data);
-
 		printf("%f\n", data);
 
-		print_binary_rep(&data);
-		char check_data[50];
-		fgets(check_data, 50, check);
-		printf("%s\n\n", check_data);
+		// get output representation
+		char* output = get_binary_rep(&data);
+		printf("%s", output);
+
+		// get check data
+		char check_data[OUTPUT_WIDTH];
+		fgets(check_data, OUTPUT_WIDTH, check);
+		printf("%s", check_data);
+		
+		// verify match
+		if(!strcmp(output, check_data)) { // strings match
+			printf("pass\n\n");
+		} else {
+			printf("fail\n\n");
+		}
+
+		free(output);
 	}
 
 	fclose(f);
