@@ -6,12 +6,18 @@
 #define DEBUG 0
 #define OUTPUT_WIDTH 50
 
+typedef struct file_stats {
+	int passes;
+	int fails;
+	int total;
+} file_stats;
+
 typedef union float_bits {
 	float f;
 	uint8_t bits[sizeof(float)];
 } FLOAT_BITS_UNION;
 
-void handle_file(char in_file[], char out_file[]);
+file_stats* handle_file(char in_file[], char out_file[]);
 char* get_binary_rep(float* base_10);
 // void print_byte(uint8_t byte, int flag);
 int sprintf_byte(char* buffer, uint8_t byte, int flag);
@@ -83,13 +89,19 @@ char* get_binary_rep(float* base_10) {
 	return result;
 }
 
-void handle_file(char in_file[], char out_file[]) {
+file_stats* handle_file(char in_file[], char out_file[]) {
 	FILE* f = fopen(in_file, "r");
 	FILE* check = fopen(out_file, "r");
 
 	int lines_to_read;
 	fscanf(f, "%d", &lines_to_read);
 	printf("Handling %s\n", in_file);
+
+	// int passes = 0, fails = 0;
+	file_stats* stat = (file_stats*) malloc(sizeof(file_stats));
+	// stat->passes = passes;
+	// stat->fails = fails;
+	stat->total = lines_to_read;
 
 	for(int i = 0; i < lines_to_read; ++i) {
 		// read in data
@@ -108,16 +120,19 @@ void handle_file(char in_file[], char out_file[]) {
 		
 		// verify match
 		if(!strcmp(output, check_data)) { // strings match
-			printf("pass\n\n");
+			printf("PASS\n\n");
+			stat->passes++;
 		} else {
-			printf("fail\n\n");
+			printf("FAIL\n\n");
+			stat->fails++;
 		}
 
 		free(output);
 	}
 
-	fclose(f);
-	return;
+
+	fclose(f); fclose(check);
+	return stat;
 }
 
 int main(int argc, char* argv[]) {
@@ -128,10 +143,22 @@ int main(int argc, char* argv[]) {
 
 	char in_file[14];
 	char out_file[15];
+	file_stats* results[max_file];
 	for (int i = 1; i <= max_file; ++i) {
 		sprintf(in_file, "floating.%d.in", i);
 		sprintf(out_file, "floating.%d.out", i);
-		handle_file(in_file, out_file);
+		file_stats* stats = handle_file(in_file, out_file);
+		results[i-1] = stats;
+	}
+
+	// result summary
+	for(int i = 0; i < max_file; ++i) {
+		file_stats* a_file = results[i];
+		printf("For file floating.%i.in:\n", i+1);
+		printf("Passed %i/%i\n", a_file->passes, a_file->total);
+		if (a_file->fails)
+			printf("Failed %i/%i\n", a_file->fails, a_file->total);
+		printf("\n");
 	}
 	return(0);
 }
